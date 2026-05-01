@@ -46,10 +46,8 @@ def condense(question: str, history: List[Dict], vit_result: Optional[Dict] = No
 def query_rag(question: str, session_id: str, top_k: int = 8):
     history = get_chat_history(session_id)
 
-    # Lấy kết quả ViT của session này (nếu user đã upload ảnh trước đó)
     vit_result = get_vit_session(session_id)
 
-    # Rewrite query — có kèm context ViT nếu có
     condensed  = condense(question, history, vit_result)
     print(f"🔍 [session={session_id}] Condensed RAG query: {condensed}")
 

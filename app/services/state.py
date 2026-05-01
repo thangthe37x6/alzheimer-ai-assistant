@@ -2,9 +2,8 @@ import json
 from typing import Dict, List, Optional
 from app.config import redis_client
 
-SESSION_TTL = 3600  # 1 hour
+SESSION_TTL = 3600
 
-# Fallback for when Redis is not available
 _fallback_sessions: Dict[str, List[Dict]] = {}
 _fallback_vit: Dict[str, Dict] = {}
 
@@ -47,7 +46,6 @@ def clear_session(session_id: str) -> None:
 
 def get_active_sessions_count() -> int:
     if redis_client:
-        # Note: keys() could be slow on large databases, but acceptable for this use case
         return len(redis_client.keys("chat:*"))
     else:
         return len(_fallback_sessions)

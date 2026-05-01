@@ -5,9 +5,8 @@ from PIL import Image
 from app.config import oai_client, CLASS_META
 
 def analyze_with_gpt4v(img_bytes: bytes, vit_result: Dict) -> str:
-    # Chuyển ảnh về chuẩn JPEG để tránh lỗi image_parse_error của OpenAI nếu up PNG
     img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-    img.thumbnail((1024, 1024)) # Resize để tiết kiệm token
+    img.thumbnail((1024, 1024)) 
     buffer = io.BytesIO()
     img.save(buffer, format="JPEG", quality=85)
     b64 = base64.b64encode(buffer.getvalue()).decode()

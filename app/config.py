@@ -4,7 +4,6 @@ import chromadb
 import redis
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 OPENAI_API_KEY  = os.getenv("OPENAI_API_KEY")
@@ -17,7 +16,6 @@ REDIS_URL       = os.getenv("REDIS_URL",       "redis://localhost:6379/0")
 if not OPENAI_API_KEY:
     raise RuntimeError("❌ Thiếu OPENAI_API_KEY trong file .env")
 
-# Classes and Meta
 CLASS_NAMES = ["MildDemented", "ModerateDemented", "NonDemented", "VeryMildDemented"]
 CLASS_META  = {
     "NonDemented":      ("Không có dấu hiệu sa sút trí tuệ", "#10b981"),
@@ -26,7 +24,6 @@ CLASS_META  = {
     "ModerateDemented": ("Sa sút trí tuệ mức trung bình",     "#ef4444"),
 }
 
-# Global Clients
 oai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
 chroma_cli = chromadb.PersistentClient(path=CHROMA_PATH)
 collection = chroma_cli.get_or_create_collection(COLLECTION_NAME)

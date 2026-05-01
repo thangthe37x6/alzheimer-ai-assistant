@@ -20,7 +20,6 @@ async def analyze(
         img_bytes  = await file.read()
         vit_result = predict(img_bytes)
 
-        # Lưu kết quả ViT vào session để dùng cho RAG về sau khi user hỏi
         if session_id:
             save_vit_session(session_id, vit_result)
             print(f"💾 [session={session_id}] ViT result saved to Redis/State: {vit_result['top_class']}")
