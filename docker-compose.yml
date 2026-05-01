@@ -19,7 +19,7 @@ services:
       - app-network
 
   redis:
-    image: redis:alpine
+    image: redis:7-bookworm
     container_name: alzheimer_redis
     restart: always
     healthcheck:
