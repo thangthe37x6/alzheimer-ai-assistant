@@ -12,6 +12,8 @@ async def chat(req: ChatRequest):
     try:
         answer, pages = query_rag(req.question, req.session_id)
         return ChatResponse(answer=answer, pages=pages)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, str(e))
 

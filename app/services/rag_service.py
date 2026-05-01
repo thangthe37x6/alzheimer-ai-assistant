@@ -49,7 +49,7 @@ def query_rag(question: str, session_id: str, top_k: int = 8):
     vit_result = get_vit_session(session_id)
 
     condensed  = condense(question, history, vit_result)
-    print(f"🔍 [session={session_id}] Condensed RAG query: {condensed}")
+    print(f"[session={session_id}] Condensed RAG query: {condensed}")
 
     results = collection.query(
         query_embeddings=[embed(condensed)], n_results=top_k

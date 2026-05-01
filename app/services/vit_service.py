@@ -12,12 +12,12 @@ def load_model():
             "Patches": Patches,
             "PatchEncoder": PatchEncoder
         })
-        print(f"✅ Model loaded: {VIT_MODEL_PATH}")
+        print(f"Model loaded: {VIT_MODEL_PATH}")
         print(f"   Input shape : {model.input_shape}")
         print(f"   Output shape: {model.output_shape}")
         return model
     except Exception as e:
-        print(f"⚠️  Model load failed: {e}")
+        print(f"Model load failed: {e}")
         return None
 
 vit_model = load_model()

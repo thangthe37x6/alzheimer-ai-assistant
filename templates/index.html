@@ -80,10 +80,10 @@ h1,h2,.serif{font-family:'Fraunces',serif}
     </div>
     <!-- Tabs -->
     <div class="flex gap-2">
-      <button class="tab-btn active" onclick="switchTab('analyze')">
+      <button class="tab-btn active" onclick="switchTab('analyze', this)">
         🧠 Phân tích ảnh MRI
       </button>
-      <button class="tab-btn" onclick="switchTab('chat')">
+      <button class="tab-btn" onclick="switchTab('chat', this)">
         💬 Hỏi đáp RAG
       </button>
     </div>
@@ -97,8 +97,8 @@ h1,h2,.serif{font-family:'Fraunces',serif}
     <!-- Upload zone -->
     <div id="dropzone" class="flex flex-col items-center justify-center gap-3 py-12 px-6 text-center"
       onclick="document.getElementById('fileInput').click()"
-      ondragover="e=>{e.preventDefault();document.getElementById('dropzone').classList.add('drag')}"
-      ondragleave="document.getElementById('dropzone').classList.remove('drag')"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
       ondrop="handleDrop(event)">
       <div id="previewWrap" class="hidden flex-col items-center gap-3 w-full">
         <img id="previewImg" class="max-h-56 rounded-xl object-contain" style="border:1px solid var(--border)" src=""/>
@@ -245,7 +245,7 @@ function switchTab(tab, fromBtn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
   document.getElementById("tab-" + tab).classList.add("active");
   // highlight đúng tab button
-  const btn = fromBtn || (event && event.target);
+  const btn = fromBtn || (typeof event !== "undefined" ? event.target : null);
   if (btn) btn.classList.add("active");
   else {
     document.querySelectorAll(".tab-btn").forEach(b => {
@@ -334,6 +334,7 @@ async function runAnalysis() {
 
   const form = new FormData();
   form.append("file", selectedFile);
+  form.append("session_id", sessionId);
 
   try {
     const res  = await fetch("/analyze", { method: "POST", body: form });

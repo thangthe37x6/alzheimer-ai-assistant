@@ -2,6 +2,7 @@ import os
 import openai
 import chromadb
 import redis
+from chromadb.config import Settings
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -25,12 +26,15 @@ CLASS_META  = {
 }
 
 oai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
-chroma_cli = chromadb.PersistentClient(path=CHROMA_PATH)
+chroma_cli = chromadb.PersistentClient(
+    path=CHROMA_PATH,
+    settings=Settings(anonymized_telemetry=False),
+)
 collection = chroma_cli.get_or_create_collection(COLLECTION_NAME)
 
 try:
     redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
     redis_client.ping()
 except Exception as e:
-    print(f"⚠️ Warning: Could not connect to Redis at {REDIS_URL}. Exception: {e}")
+    print(f"Warning: Could not connect to Redis at {REDIS_URL}. Exception: {e}")
     redis_client = None
