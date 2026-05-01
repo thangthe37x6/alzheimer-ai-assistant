@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+.env
+.venv
+venv/
+Scripts/
+Lib/
+Include/
+.git
+.gitignore
+process_data.ipynb
+*.md

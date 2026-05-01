@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+Lib/
+Scripts/
+share/
+etc/
+pyvenv.cfg
+.venv/
+venv/
+Include/
+
+# Secrets
+.env
+
+# Data & Model (too large for git)
+model/*.keras
+chroma_db/
+alzheimer_db/
+parsed_pages.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary backups
+*.bak
+

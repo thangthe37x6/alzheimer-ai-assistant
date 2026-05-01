@@ -1,0 +1,36 @@
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+from app.schemas.models import AnalyzeResponse
+from app.services.vit_service import predict, vit_model
+from app.services.gpt_service import analyze_with_gpt4v
+from app.services.state import save_vit_session
+from app.config import CLASS_META
+
+router = APIRouter()
+
+@router.post("/analyze", response_model=AnalyzeResponse)
+async def analyze(
+    file:       UploadFile = File(...),
+    session_id: str        = Form(default=""),
+):
+    if vit_model is None:
+        raise HTTPException(503, "Model chưa được load. Kiểm tra VIT_MODEL_PATH trong .env")
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(400, "Chỉ chấp nhận file ảnh (jpg, png...)")
+    try:
+        img_bytes  = await file.read()
+        vit_result = predict(img_bytes)
+
+        # Lưu kết quả ViT vào session để dùng cho RAG về sau khi user hỏi
+        if session_id:
+            save_vit_session(session_id, vit_result)
+            print(f"💾 [session={session_id}] ViT result saved to Redis/State: {vit_result['top_class']}")
+
+        gpt_text   = analyze_with_gpt4v(img_bytes, vit_result)
+        top        = vit_result["top_class"]
+        label, color = CLASS_META.get(top, (top, "#64748b"))
+        return AnalyzeResponse(
+            top_class=top, label=label, color=color,
+            scores=vit_result["scores"], gpt_analysis=gpt_text,
+        )
+    except Exception as e:
+        raise HTTPException(500, str(e))

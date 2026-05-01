@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Alzheimer AI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,600;1,300&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0d1117; --surface:#161b22; --surface2:#21262d;
+  --border:#30363d; --teal:#2dd4bf; --teal-dim:#0f3d38;
+  --amber:#fbbf24; --red:#f87171; --green:#34d399;
+  --text:#e6edf3; --muted:#8b949e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Geist',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;display:flex;flex-direction:column}
+h1,h2,.serif{font-family:'Fraunces',serif}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── Tabs ── */
+.tab-btn{padding:10px 22px;border-radius:8px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .2s;border:1px solid transparent}
+.tab-btn.active{color:var(--teal);background:var(--teal-dim);border-color:#2dd4bf44}
+.tab-btn:hover:not(.active){color:var(--text);background:var(--surface2)}
+.tab-panel{display:none}.tab-panel.active{display:flex;flex-direction:column;flex:1}
+    #tab-chat.active{display:flex !important}
+
+/* ── Upload zone ── */
+#dropzone{border:2px dashed var(--border);border-radius:16px;transition:all .25s;cursor:pointer}
+#dropzone.drag{border-color:var(--teal);background:var(--teal-dim)}
+#dropzone:hover{border-color:#4b5563}
+
+/* ── Confidence bar ── */
+.conf-bar{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden}
+.conf-fill{height:100%;border-radius:3px;transition:width .7s cubic-bezier(.4,0,.2,1)}
+
+/* ── Chat bubbles ── */
+.bubble-ai{background:var(--surface);border:1px solid var(--border);border-radius:4px 16px 16px 16px}
+.bubble-user{background:var(--teal-dim);border:1px solid #2dd4bf33;border-radius:16px 4px 16px 16px}
+
+/* ── Source badge ── */
+.badge{display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;color:#60a5fa;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px}
+
+/* ── Dots ── */
+.dot{animation:blink 1.4s infinite both;width:7px;height:7px;border-radius:50%;background:var(--teal)}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+
+/* ── Fade-in ── */
+.fade-in{animation:fadeUp .3s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Markdown-lite ── */
+.md strong{color:var(--text);font-weight:600}
+.md em{color:var(--muted)}
+
+/* ── Spinner ── */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .8s linear infinite}
+
+#chatInput:focus{outline:none;box-shadow:0 0 0 2px #2dd4bf55}
+#sendBtn:not(:disabled):hover{background:#14b8a6}
+#sendBtn:disabled{opacity:.4;cursor:not-allowed}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header style="position:relative; z-index:50; border-bottom:1px solid var(--border);background:var(--surface)">
+  <div class="max-w-4xl mx-auto px-5 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--teal-dim);border:1px solid #2dd4bf44">
+        <svg class="w-4 h-4" style="color:var(--teal)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3a6 6 0 016 6c0 1.887-.874 3.57-2.237 4.672A4 4 0 0116 17H8a4 4 0 01-.763-3.328A6 6 0 0112 3z"/>
+        </svg>
+      </div>
+      <span class="serif text-lg font-light" style="color:var(--text)">Alzheimer<span style="color:var(--teal)"> AI</span></span>
+    </div>
+    <!-- Tabs -->
+    <div class="flex gap-2">
+      <button class="tab-btn active" onclick="switchTab('analyze')">
+        🧠 Phân tích ảnh MRI
+      </button>
+      <button class="tab-btn" onclick="switchTab('chat')">
+        💬 Hỏi đáp RAG
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ ANALYZE TAB ═══ -->
+<div id="tab-analyze" class="tab-panel active flex-1">
+  <div class="max-w-4xl mx-auto w-full px-5 py-8 flex flex-col gap-6">
+
+    <!-- Upload zone -->
+    <div id="dropzone" class="flex flex-col items-center justify-center gap-3 py-12 px-6 text-center"
+      onclick="document.getElementById('fileInput').click()"
+      ondragover="e=>{e.preventDefault();document.getElementById('dropzone').classList.add('drag')}"
+      ondragleave="document.getElementById('dropzone').classList.remove('drag')"
+      ondrop="handleDrop(event)">
+      <div id="previewWrap" class="hidden flex-col items-center gap-3 w-full">
+        <img id="previewImg" class="max-h-56 rounded-xl object-contain" style="border:1px solid var(--border)" src=""/>
+        <p id="previewName" class="text-sm" style="color:var(--muted)"></p>
+      </div>
+      <div id="uploadPrompt" class="flex flex-col items-center gap-2">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center" style="background:var(--surface2)">
+          <svg class="w-7 h-7" style="color:var(--muted)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+          </svg>
+        </div>
+        <p class="font-medium" style="color:var(--text)">Kéo thả hoặc click để tải ảnh MRI</p>
+        <p class="text-sm" style="color:var(--muted)">Hỗ trợ JPG, PNG — kết hợp ViT + GPT-4o Vision</p>
+      </div>
+      <input id="fileInput" type="file" accept="image/*" class="hidden" onchange="handleFileSelect(this.files[0])"/>
+    </div>
+
+    <!-- Analyze button -->
+    <button id="analyzeBtn" onclick="runAnalysis()"
+      class="hidden mx-auto px-8 py-3 rounded-xl font-medium text-sm transition-all"
+      style="background:var(--teal);color:#0d1117">
+      🔍 Phân tích ảnh
+    </button>
+
+    <!-- Result panel -->
+    <div id="resultPanel" class="hidden fade-in flex flex-col gap-6">
+
+      <!-- Top result card -->
+      <div class="rounded-2xl p-6 flex items-center gap-5" style="background:var(--surface);border:1px solid var(--border)">
+        <div id="resultIcon" class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shrink-0" style="background:var(--surface2)">🧠</div>
+        <div class="flex-1">
+          <p class="text-xs font-semibold mb-1" style="color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Kết quả ViT</p>
+          <h2 id="resultLabel" class="serif text-2xl font-light"></h2>
+          <p id="resultClass" class="text-sm mt-1" style="color:var(--muted)"></p>
+        </div>
+        <div id="topConf" class="text-4xl font-semibold serif shrink-0"></div>
+      </div>
+
+      <!-- Confidence bars -->
+      <div class="rounded-2xl p-5" style="background:var(--surface);border:1px solid var(--border)">
+        <p class="text-xs font-semibold mb-4" style="color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Phân phối xác suất</p>
+        <div id="confBars" class="flex flex-col gap-3"></div>
+      </div>
+
+      <!-- GPT-4o analysis -->
+      <div class="rounded-2xl p-6" style="background:var(--surface);border:1px solid var(--border)">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:#7c3aed22;border:1px solid #7c3aed44">
+            <svg class="w-3.5 h-3.5" style="color:#a78bfa" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+            </svg>
+          </div>
+          <p class="text-xs font-semibold" style="color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Phân tích GPT-4o Vision</p>
+        </div>
+        <div id="gptAnalysis" class="text-sm leading-relaxed md" style="color:#c9d1d9;white-space:pre-wrap"></div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <!-- CTA chính: chuyển sang chat với context -->
+        <button id="continueChat"
+          onclick="goToChat()"
+          class="flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all"
+          style="background:var(--teal);color:#0d1117">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"/>
+          </svg>
+          Hỏi thêm về kết quả này
+        </button>
+        <!-- Reset -->
+        <button onclick="resetAnalysis()"
+          class="flex items-center gap-2 px-5 py-3 rounded-xl text-sm transition-colors"
+          style="color:var(--muted);border:1px solid var(--border)"
+          onmouseover="this.style.color='#e6edf3'" onmouseout="this.style.color='#8b949e'">
+          ↺ Phân tích ảnh khác
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading overlay for analyze -->
+    <div id="analyzeLoading" class="hidden flex flex-col items-center gap-4 py-10">
+      <svg class="spin w-8 h-8" style="color:var(--teal)" fill="none" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-dasharray="60" stroke-dashoffset="20" stroke-linecap="round"/>
+      </svg>
+      <div class="flex flex-col items-center gap-1">
+        <p class="font-medium" style="color:var(--text)" id="loadingStep">Đang chạy ViT model…</p>
+        <p class="text-sm" style="color:var(--muted)">Đang phân tích với GPT-4o Vision…</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ CHAT TAB ═══ -->
+<div id="tab-chat" class="tab-panel" style="position:fixed;inset:57px 0 0 0;display:none;flex-direction:column;">
+  <div style="display:flex;flex-direction:column;height:100%;max-width:768px;margin:0 auto;width:100%;padding:0 16px;">
+
+    <!-- Messages scrollable -->
+    <div id="chatBox" style="flex:1;overflow-y:auto;padding:24px 0;display:flex;flex-direction:column;gap:20px;">
+      <div class="fade-in flex gap-3">
+        <div class="w-7 h-7 rounded-full shrink-0 flex items-center justify-center mt-0.5" style="background:var(--teal-dim);border:1px solid #2dd4bf33">
+          <svg class="w-3.5 h-3.5" style="color:var(--teal)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"/>
+          </svg>
+        </div>
+        <div class="bubble-ai px-4 py-3 max-w-lg text-sm leading-relaxed" style="color:var(--muted)">
+          Xin chào! Hỏi tôi bất cứ điều gì về <strong style="color:var(--text)">bệnh Alzheimer</strong> — triệu chứng, điều trị, chăm sóc bệnh nhân…
+        </div>
+      </div>
+    </div>
+
+    <!-- Input pinned bottom -->
+    <div style="flex-shrink:0;padding:12px 0 8px;border-top:1px solid var(--border);">
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <textarea id="chatInput" rows="1"
+          placeholder="Hỏi về bệnh Alzheimer, triệu chứng, giải pháp…"
+          class="text-sm rounded-xl px-4 py-3 leading-relaxed transition-all"
+          style="flex:1;resize:none;background:var(--surface);border:1px solid var(--border);color:var(--text);max-height:140px;font-family:inherit;"
+        ></textarea>
+        <button id="sendBtn"
+          class="rounded-xl flex items-center justify-center transition-colors"
+          style="width:40px;height:40px;flex-shrink:0;background:var(--teal);">
+          <svg class="w-4 h-4" style="color:#0d1117" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.27 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>
+          </svg>
+        </button>
+      </div>
+      <p style="text-align:center;font-size:10px;color:#484f58;margin-top:6px;padding-bottom:4px;">Thông tin mang tính tham khảo — không thay thế tư vấn bác sĩ</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Session ────────────────────────────────────────────
+let sessionId = sessionStorage.getItem("az_sid") || crypto.randomUUID();
+sessionStorage.setItem("az_sid", sessionId);
+
+let selectedFile = null;
+let lastResult   = null;  
+
+// ── Tab switch ─────────────────────────────────────────
+function switchTab(tab, fromBtn) {
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("tab-" + tab).classList.add("active");
+  // highlight đúng tab button
+  const btn = fromBtn || (event && event.target);
+  if (btn) btn.classList.add("active");
+  else {
+    document.querySelectorAll(".tab-btn").forEach(b => {
+      if (b.textContent.includes(tab === "chat" ? "Hỏi đáp" : "Phân tích")) b.classList.add("active");
+    });
+  }
+}
+
+// ── Chuyển sang Chat tab và inject context từ kết quả ViT ──
+function goToChat() {
+  // 1. Chuyển tab
+  switchTab("chat");
+
+  // 2. Nếu chưa có context từ kết quả ViT thì thôi
+  if (!lastResult) return;
+
+  // 3. Inject 1 tin nhắn AI tóm tắt kết quả vào đầu chat (chỉ inject 1 lần)
+  if (document.getElementById("vitContextBubble")) return;
+
+  const { label, top_class, scores, gpt_analysis } = lastResult;
+  const topConf = scores[top_class];
+  const sorted  = Object.entries(scores).sort((a,b) => b[1]-a[1]);
+  const scoreLines = sorted.map(([c,s]) => `• ${c}: ${s}%`).join("\n");
+
+  const contextText =
+    `📋 Tóm tắt kết quả phân tích ảnh MRI:\n` +
+    `▸ Chẩn đoán: ${label} (${top_class}) — ${topConf}%\n` +
+    `▸ Xác suất các nhóm:\n${scoreLines}\n\n` +
+    `Bạn có thể hỏi tôi về chẩn đoán này, các giải pháp điều trị, hoặc cách chăm sóc bệnh nhân.`;
+
+  // Thêm bubble AI context
+  const d = document.createElement("div");
+  d.id = "vitContextBubble";
+  d.className = "fade-in flex gap-3 items-start";
+  d.innerHTML = `
+    <div class="w-7 h-7 rounded-full shrink-0 flex items-center justify-center mt-0.5" style="background:var(--teal-dim);border:1px solid #2dd4bf33">
+      <svg class="w-3.5 h-3.5" style="color:var(--teal)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"/>
+      </svg>
+    </div>
+    <div class="bubble-ai px-4 py-3 max-w-xl text-sm leading-relaxed">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-semibold px-2 py-0.5 rounded-md" style="background:#2dd4bf22;color:var(--teal)">🧠 Kết quả từ ViT Model</span>
+      </div>
+      <div class="whitespace-pre-wrap" style="color:#c9d1d9">${esc(contextText)}</div>
+      <p class="mt-3 text-xs" style="color:var(--muted)">Hãy đặt câu hỏi bên dưới để tìm hiểu thêm.</p>
+    </div>`;
+  chatBox.appendChild(d);
+  scrollBot();
+
+  // 4. Focus vào input
+  chatInput.focus();
+}
+
+// ══════════════════════════════════════════════════════
+//  IMAGE ANALYSIS
+// ══════════════════════════════════════════════════════
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById("dropzone").classList.remove("drag");
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith("image/")) handleFileSelect(f);
+}
+
+function handleFileSelect(f) {
+  if (!f) return;
+  selectedFile = f;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById("previewImg").src = ev.target.result;
+    document.getElementById("previewName").textContent = f.name + " · " + (f.size/1024).toFixed(0) + " KB";
+    document.getElementById("uploadPrompt").classList.add("hidden");
+    document.getElementById("previewWrap").classList.remove("hidden");
+    document.getElementById("previewWrap").classList.add("flex");
+    document.getElementById("analyzeBtn").classList.remove("hidden");
+    document.getElementById("resultPanel").classList.add("hidden");
+  };
+  reader.readAsDataURL(f);
+}
+
+async function runAnalysis() {
+  if (!selectedFile) return;
+  document.getElementById("analyzeBtn").classList.add("hidden");
+  document.getElementById("analyzeLoading").classList.remove("hidden");
+  document.getElementById("resultPanel").classList.add("hidden");
+
+  const form = new FormData();
+  form.append("file", selectedFile);
+
+  try {
+    const res  = await fetch("/analyze", { method: "POST", body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Lỗi server");
+    showResult(data);
+  } catch (err) {
+    alert("⚠️ " + err.message);
+    document.getElementById("analyzeBtn").classList.remove("hidden");
+  } finally {
+    document.getElementById("analyzeLoading").classList.add("hidden");
+  }
+}
+
+function showResult(data) {
+  lastResult = data;  // lưu để dùng trong goToChat()
+  // Top card
+  const icons = { NonDemented:"✅", VeryMildDemented:"🟡", MildDemented:"🟠", ModerateDemented:"🔴" };
+  document.getElementById("resultIcon").textContent  = icons[data.top_class] || "🧠";
+  document.getElementById("resultIcon").style.background = data.color + "22";
+  document.getElementById("resultLabel").textContent = data.label;
+  document.getElementById("resultLabel").style.color = data.color;
+  document.getElementById("resultClass").textContent = data.top_class;
+  const topConf = data.scores[data.top_class];
+  document.getElementById("topConf").textContent = topConf + "%";
+  document.getElementById("topConf").style.color  = data.color;
+
+  // Bars
+  const barColors = { NonDemented:"#34d399", VeryMildDemented:"#fbbf24", MildDemented:"#f97316", ModerateDemented:"#f87171" };
+  const sorted = Object.entries(data.scores).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("confBars").innerHTML = sorted.map(([cls, pct]) => `
+    <div>
+      <div class="flex justify-between text-xs mb-1.5" style="color:var(--muted)">
+        <span>${cls}</span><span style="color:${barColors[cls]||'#64748b'}">${pct}%</span>
+      </div>
+      <div class="conf-bar">
+        <div class="conf-fill" style="width:${pct}%;background:${barColors[cls]||'#64748b'}"></div>
+      </div>
+    </div>`).join("");
+
+  // GPT analysis
+  document.getElementById("gptAnalysis").textContent = data.gpt_analysis;
+
+  document.getElementById("resultPanel").classList.remove("hidden");
+  document.getElementById("resultPanel").classList.add("fade-in");
+  document.getElementById("resultPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function resetAnalysis() {
+  selectedFile = null;
+  document.getElementById("previewWrap").classList.add("hidden");
+  document.getElementById("previewWrap").classList.remove("flex");
+  document.getElementById("uploadPrompt").classList.remove("hidden");
+  document.getElementById("analyzeBtn").classList.add("hidden");
+  document.getElementById("resultPanel").classList.add("hidden");
+  document.getElementById("fileInput").value = "";
+}
+
+// ══════════════════════════════════════════════════════
+//  RAG CHAT
+// ══════════════════════════════════════════════════════
+const chatBox  = document.getElementById("chatBox");
+const chatInput = document.getElementById("chatInput");
+const sendBtn  = document.getElementById("sendBtn");
+
+chatInput.addEventListener("input", () => {
+  chatInput.style.height = "auto";
+  chatInput.style.height = chatInput.scrollHeight + "px";
+});
+chatInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+sendBtn.addEventListener("click", sendMessage);
+
+function esc(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function scrollBot() {
+  chatBox.scrollTo({ top: 9999, behavior: "smooth" });
+}
+
+function appendUser(text) {
+  const d = document.createElement("div");
+  d.className = "fade-in flex justify-end";
+  d.innerHTML = `<div class="bubble-user px-4 py-3 max-w-lg text-sm leading-relaxed whitespace-pre-wrap" style="color:var(--text)">${esc(text)}</div>`;
+  chatBox.appendChild(d); scrollBot();
+}
+
+function appendTyping() {
+  const d = document.createElement("div");
+  d.id = "typing"; d.className = "fade-in flex gap-3";
+  d.innerHTML = `
+    <div class="w-7 h-7 rounded-full shrink-0 flex items-center justify-center" style="background:var(--teal-dim);border:1px solid #2dd4bf33">
+      <svg class="w-3.5 h-3.5" style="color:var(--teal)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"/>
+      </svg>
+    </div>
+    <div class="bubble-ai px-4 py-3 flex gap-1.5 items-center">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    </div>`;
+  chatBox.appendChild(d); scrollBot();
+}
+
+function appendAI(text) {
+  document.getElementById("typing")?.remove();
+
+  const d = document.createElement("div");
+  d.className = "fade-in flex gap-3 items-start";
+
+  d.innerHTML = `
+    <div class="w-7 h-7 rounded-full shrink-0 flex items-center justify-center mt-0.5" style="background:var(--teal-dim);border:1px solid #2dd4bf33">
+      <svg class="w-3.5 h-3.5" style="color:var(--teal)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"/>
+      </svg>
+    </div>
+
+    <div class="bubble-ai px-4 py-3 max-w-lg text-sm leading-relaxed">
+      <div class="whitespace-pre-wrap" style="color:#c9d1d9">
+        ${esc(text)}
+      </div>
+    </div>
+  `;
+
+  chatBox.appendChild(d);
+  scrollBot();
+}
+
+async function sendMessage() {
+  const q = chatInput.value.trim();
+  if (!q) return;
+  sendBtn.disabled = true;
+  chatInput.value = ""; chatInput.style.height = "auto";
+  appendUser(q); appendTyping();
+  try {
+    const res  = await fetch("/chat", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ session_id: sessionId, question: q }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    appendAI(data.answer, data.pages);
+  } catch (err) {
+    document.getElementById("typing")?.remove();
+    appendAI("⚠️ Lỗi: " + err.message, []);
+  } finally {
+    sendBtn.disabled = false; chatInput.focus();
+  }
+}
+</script>
+</body>
+</html>
