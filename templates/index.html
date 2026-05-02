@@ -233,7 +233,14 @@ h1,h2,.serif{font-family:'Fraunces',serif}
 
 <script>
 // ── Session ────────────────────────────────────────────
-let sessionId = sessionStorage.getItem("az_sid") || crypto.randomUUID();
+function createSessionId() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+  return "sid-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+}
+
+let sessionId = sessionStorage.getItem("az_sid") || createSessionId();
 sessionStorage.setItem("az_sid", sessionId);
 
 let selectedFile = null;
